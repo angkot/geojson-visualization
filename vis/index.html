@@ -1,5 +1,108 @@
 <!DOCTYPE html>
-<html><head>
-</head><body>
+<html ng-app='App'><head>
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.css" />
+<style>
+body, html { margin: 0px; padding: 0px; }
+#map {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  right: 300px;
+  bottom: 0px;
+}
+#list {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  width: 280px;
+  padding: 10px;
+}
+#list ul {
+  margin: 0px;
+  padding: 0px;
+  list-style: none;
+}
+#list li {
+}
+</style>
+</head><body ng-controller="Vis">
+<div ng-init="init()">
 
+<div id="map"></div>
+
+<div id="list"><ul>
+<li ng-repeat="item in data | orderBy:timestamp:reverse">
+  <a href="" ng-click="load($index)" ng-bind="item.timestamp"></a>
+</li>
+</ul></div>
+
+</div>
+
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
+<script src="http://cdn.leafletjs.com/leaflet-0.6.4/leaflet.js"></script>
+<script>
+
+var app = angular.module('App', []);
+app.controller('Vis', function($scope, $http, $timeout) {
+
+  $scope.start = 0;
+  $scope.data = [];
+
+  var map, vis;
+
+  $scope.init = function() {
+    $scope.initMap();
+
+    // auto update list
+    var delay = 2500;
+    $scope.updateList();
+    $timeout(function update() {
+      $scope.updateList();
+      $timeout(update, delay);
+    }, delay);
+  }
+
+  $scope.initMap = function() {
+    map = new L.Map('map');
+    var osmUrl='http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    var osmAttrib='Map data © OpenStreetMap contributors';
+    var osm = new L.TileLayer(osmUrl, {minZoom: 1, maxZoom: 18, attribution: osmAttrib});
+
+    map.setView(new L.LatLng(-6.1744444, 106.8294444), 12);
+    map.addLayer(osm);
+  }
+
+  $scope.updateList = function() {
+    var url = '/update?start='+$scope.start;
+    $http.get(url)
+      .success(function(data) {
+        $scope.start += data.data.length
+        for (var i=0; i<data.data.length; i++) {
+          $scope.data.push(data.data[i]);
+        }
+      });
+  }
+
+  $scope.load = function(index) {
+    var url = '/get/' + $scope.data[index].index;
+    $http.get(url)
+      .success(function(data) {
+        $scope.show(data.data);
+      });
+  }
+
+  $scope.show = function(data) {
+    if (vis) {
+      map.removeLayer(vis);
+    }
+    vis = L.geoJson(data.data);
+    vis.addTo(map);
+
+    map.fitBounds(vis.getBounds());
+  }
+
+});
+
+</script>
 </body></html>
